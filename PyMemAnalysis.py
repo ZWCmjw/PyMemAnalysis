@@ -307,17 +307,7 @@ class Application(tk.Frame):
 		self.CheckMAP.grid(row=0, column=2, sticky='ew')
 
 		self.TextMSM = tk.Label(self,text ="基本信息 " ,width=30,height=1,relief ='flat')
-		self.TextMSM.grid(row=0, column=3,columnspan = 4,sticky='ew')
-
-		self.Modify = tk.Button(self)
-		self.Modify["text"] = "  修改  "
-		self.Modify["command"] = self.MemModify
-		self.Modify.grid(row=8, column=6, sticky='ew')
-
-
-
-
-
+		self.TextMSM.grid(row=0, column=3,columnspan = 6,sticky='ew')
 
 
 
@@ -325,27 +315,61 @@ class Application(tk.Frame):
 	def create_Canvas(self,data):
 		# flat, groove, raised, ridge, solid, or sunken  
 		cvs = tk.Canvas(self,width=200, height=600,bg = 'white',relief ='groove')
-		cvs.grid(row=1, column=0,rowspan=8 ,columnspan=3, padx= 8,pady= 4, sticky='ew')
+		cvs.grid(row=1, column=0,rowspan=16 ,columnspan=3, padx= 8,pady= 4, sticky='ew')
 		if data is not None:
-			# cvs.create_text(60,500,text = "12345")
+			cvs1 = tk.Canvas(self,width=200, height=300,bg = 'white',relief ='groove')
+			cvs1.grid(row=7, column=3,rowspan=10 ,columnspan=6, padx= 8,pady= 4, sticky='ewn')
+
+			Modify = tk.Button(self)
+			Modify["text"] = "  修改  "
+			Modify["command"] = self.MemModify
+			Modify.grid(row=16, column=8, sticky='ew')
+
 			if data[1] > data[13]:
 				ramy1 = 600
-				ramy0 = 400
-				nvmy1 = 350
-				nvmy2 = 0
+				ramy2 = 500
+				nvmy1 = 450
+				nvmy2 = 15
+				fg    = 475
 			else:
 				nvmy1 = 600
-				nvmy2 = 250
-				ramy1 = 200
-				ramy0 = 0
-			cvs.create_text(100, nvmy - 5,  text="JC_EEPROM_BASE  " + hex(data[1]))
-			cvs.create_text(100, ramy + 45, text="EEPROM_LIMIT    " + hex(data[2]))
-			cvs.create_line(0,nvmy, 200, nvmy, fill='red')
-			cvs.create_line(0,ramy+50, 200, ramy+50, fill='red')
-			cvs.create_text(100, ramy - 5,  text="JC_RAM_BASE     " + hex(data[13]))
-			cvs.create_text(100,  10,       text="RAM_LIMIT       " + hex(data[14]))
-			cvs.create_line(0, ramy, 200, ramy, fill='red')
-			cvs.create_line(0, 15, 200, 15, fill='red')
+				nvmy2 = 165
+				ramy1 = 115
+				ramy2 = 15
+				fg    = 140
+			cvs.create_text(100, nvmy1 - 5,  text="JC_EEPROM_BASE  " + hex(data[1]))
+			cvs.create_text(100, nvmy2 - 5 , text="EEPROM_LIMIT    " + hex(data[2]))
+			cvs.create_line(0,nvmy1, 200, nvmy1, fill='red')
+			cvs.create_line(0,nvmy2, 200, nvmy2, fill='red')
+
+			cvs.create_text(100, ramy1 - 5,  text="JC_RAM_BASE     " + hex(data[13]))
+			cvs.create_text(100, ramy2 - 5,  text="RAM_LIMIT       " + hex(data[14]))
+			cvs.create_line(0, ramy1, 200, ramy1, fill='red')
+			cvs.create_line(0, ramy2, 200, ramy2, fill='red')
+
+			cvs.create_line(0, fg-3 , 200, fg-3, fill='black', dash=(4, 4)) 
+			cvs.create_line(0, fg+3 , 200, fg+3, fill='black', dash=(4, 4)) 
+
+			romt = data[2] - data[1] +1
+
+			#画ROMBase
+			t = nvmy1 - int(((data[4]-data[1] +1) /romt)*(nvmy1 - nvmy2)) 			
+			cvs.create_line(0,t , 200, t , fill='blue')
+			cvs.create_text(100, t - 5,  text="ROMBase    " + hex(data[4]))
+			# rommask  staticinit
+			t0 = int(((data[17]) /romt)*(nvmy1 - nvmy2))	
+			t1 = t - int(t0/2)
+			t2 = t - t0
+			cvs.create_line(0,t2 , 200, t2 , fill='red', dash=(4, 4)) 
+			cvs.create_text(100, t1 - 5,  text="rommask    " + hex(data[17]))	
+			cvs.create_text(100, t2 - 5,  text="staticinit " + hex(data[18]))			
+			
+			#画NVMBase
+			t = nvmy1 - int(((data[5]-data[1] +1) /romt)*(nvmy1 - nvmy2)) 			
+			cvs.create_line(0,t , 200, t , fill='blue')
+			cvs.create_text(100, t - 5,  text="NVMBase    " + hex(data[5]))
+
+
 			# cvs.create_rectangle(0, 0, 200, 300, fill="grey") #white
 			# cvs.create_rectangle(200, 0,300, 50, fill="red")
 			# cvs.create_line(0, nvmy - 1, 200, nvmy - 1, fill='red', dash=(4, 4))  # 虚线
@@ -381,7 +405,7 @@ class Application(tk.Frame):
 
 	def Basic_infor(self,data,map):
 		Basic_infor = tk.Text(self, width=20, height=15, bg="lightblue")
-		Basic_infor.grid(row=1, column=3,columnspan = 4, padx= 2,pady= 4, sticky='ewn')
+		Basic_infor.grid(row=1, column=3,rowspan = 6,columnspan = 6, padx= 2,pady= 4, sticky='ewn')
 		if data is not None:
 			Basic_infor.insert(1.0, "NVM 页大小："+hex(data[3])+" （"+str(data[3])+"） " +"\n" )
 			Basic_infor.insert(2.0, "NVM 总空间：" + str(int((data[2] - data[1] +1)/1024)) +"K"+ "\n")
