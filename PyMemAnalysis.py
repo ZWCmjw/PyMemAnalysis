@@ -1,5 +1,8 @@
 import  os,sys,linecache,codecs
 import tkinter as tk
+from tkinter.filedialog import  askopenfilename
+import tkinter.messagebox
+
 
 filemask = 'C:/Users/Administrator/Desktop/JavaCOS 空间修改器/c/mask.c'
 fileNvm = 'C:/Users/Administrator/Desktop/JavaCOS 空间修改器/c/NvmDefaultData.c'
@@ -289,6 +292,7 @@ class Application(tk.Frame):
 		self.create_Mainwidgets()
 		self.create_Canvas(None)
 		self.Basic_infor(None,None)
+		self.filelist = [None,None,None,None,None]
 
 	def create_Mainwidgets(self):
 		self.ProPath = tk.Button(self)
@@ -312,31 +316,35 @@ class Application(tk.Frame):
 
 
 
+
 	def create_Canvas(self,data):
-		# flat, groove, raised, ridge, solid, or sunken  
+		# flat, groove, raised, ridge, solid, or sunken
 		cvs = tk.Canvas(self,width=200, height=600,bg = 'white',relief ='groove')
 		cvs.grid(row=1, column=0,rowspan=16 ,columnspan=3, padx= 8,pady= 4, sticky='ew')
+		cvs.create_rectangle(2, 2, 200, 600, fill="white")
 		if data is not None:
 			cvs1 = tk.Canvas(self,width=200, height=300,bg = 'white',relief ='groove')
 			cvs1.grid(row=7, column=3,rowspan=10 ,columnspan=6, padx= 8,pady= 4, sticky='ewn')
-
+			cvs1.create_rectangle(2, 2, 200, 300, fill="white")
 			Modify = tk.Button(self)
 			Modify["text"] = "  修改  "
 			Modify["command"] = self.MemModify
 			Modify.grid(row=16, column=8, sticky='ew')
 
+			maxsize = 600
+
 			if data[1] > data[13]:
-				ramy1 = 600
-				ramy2 = 500
-				nvmy1 = 450
+				ramy1 = maxsize
+				ramy2 = maxsize - 100
+				nvmy1 = maxsize - 150
 				nvmy2 = 15
-				fg    = 475
+
 			else:
-				nvmy1 = 600
+				nvmy1 = maxsize
 				nvmy2 = 165
 				ramy1 = 115
 				ramy2 = 15
-				fg    = 140
+			fg = int((ramy1 + nvmy2) / 2)
 			cvs.create_text(100, nvmy1 - 5,  text="JC_EEPROM_BASE  " + hex(data[1]))
 			cvs.create_text(100, nvmy2 - 5 , text="EEPROM_LIMIT    " + hex(data[2]))
 			cvs.create_line(0,nvmy1, 200, nvmy1, fill='red')
@@ -347,37 +355,126 @@ class Application(tk.Frame):
 			cvs.create_line(0, ramy1, 200, ramy1, fill='red')
 			cvs.create_line(0, ramy2, 200, ramy2, fill='red')
 
-			cvs.create_line(0, fg-3 , 200, fg-3, fill='black', dash=(4, 4)) 
-			cvs.create_line(0, fg+3 , 200, fg+3, fill='black', dash=(4, 4)) 
+			cvs.create_line(0, fg-3 , 200, fg-3, fill='black', dash=(4, 4))
+			cvs.create_line(0, fg+3 , 200, fg+3, fill='black', dash=(4, 4))
 
 			romt = data[2] - data[1] +1
 
 			#画ROMBase
-			t = nvmy1 - int(((data[4]-data[1] +1) /romt)*(nvmy1 - nvmy2)) 			
+			t = nvmy1 - int(((data[4]-data[1] +1) /romt)*(nvmy1 - nvmy2))
 			cvs.create_line(0,t , 200, t , fill='blue')
 			cvs.create_text(100, t - 5,  text="ROMBase    " + hex(data[4]))
 			# rommask  staticinit
-			t0 = int(((data[17]) /romt)*(nvmy1 - nvmy2))	
+			t0 = int(((data[17]) /romt)*(nvmy1 - nvmy2))
 			t1 = t - int(t0/2)
 			t2 = t - t0
-			cvs.create_line(0,t2 , 200, t2 , fill='red', dash=(4, 4)) 
-			cvs.create_text(100, t1 - 5,  text="rommask    " + hex(data[17]))	
-			cvs.create_text(100, t2 - 5,  text="staticinit " + hex(data[18]))			
-			
-			#画NVMBase
-			t = nvmy1 - int(((data[5]-data[1] +1) /romt)*(nvmy1 - nvmy2)) 			
+			cvs.create_line(0,t2 , 200, t2 , fill='red', dash=(4, 4))
+			cvs.create_text(100, t1 - 5,  text="rommask    " + hex(data[17]))
+			cvs.create_text(100, t2 - 5,  text="staticinit " + hex(data[18]))
+
+			# 放大
+			tt = 300
+			romtd = data[4] +data[17]
+			romtt = data[10]+data[18] - romtd
+
+			print(hex(romtt))
+			cvs1.create_line(0, tt, 200, tt, fill='blue')
+			cvs1.create_text(100, tt-5 , text="staticinit start addr " + hex(data[4] +data[17] ))
+			tt =300 - int(((data[18]) / romtt) * 300)
+			cvs1.create_line(0, tt, 200, tt, fill='blue')
+			cvs1.create_text(100, tt + 5, text="staticinit end addr " + hex(data[4] + data[17] + data[18]))
+			# staticinit
+			cvs1.create_text(100, int((tt + 300)/2), text="staticinit " + hex(data[18]))
+
+			#画 NVMBase
+			t = nvmy1 - int(((data[5]-data[1] +1) /romt)*(nvmy1 - nvmy2))
 			cvs.create_line(0,t , 200, t , fill='blue')
-			cvs.create_text(100, t - 5,  text="NVMBase    " + hex(data[5]))
+			# cvs.create_text(100, t - 5,  text="NVMBase    " + hex(data[5]))
 
+			# 放大
+			tt = 300 - int(((data[5] - romtd ) / romtt) * 300)
+			cvs1.create_line(0,tt , 200, tt , fill='blue')
+			cvs1.create_text(100, tt - 5, text="NVMBase    " + hex(data[5]))
 
-			# cvs.create_rectangle(0, 0, 200, 300, fill="grey") #white
-			# cvs.create_rectangle(200, 0,300, 50, fill="red")
-			# cvs.create_line(0, nvmy - 1, 200, nvmy - 1, fill='red', dash=(4, 4))  # 虚线
+			# 画 OS_PARA_DATA_FIELD_START
+			t = nvmy1 - int(((data[6] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
+			cvs.create_line(0, t, 200, t, fill='blue')
+			# 放大
+			tt = 300 - int(((data[6] - romtd ) / romtt) * 300)
+			cvs1.create_line(0,tt , 200, tt , fill='blue')
+			cvs1.create_text(100, tt - 5, text="平台配置区 " + hex(data[6]))
+			# 画 OS_VARIABLE_FIELD_START
+			t = nvmy1 - int(((data[8] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
+			cvs.create_line(0, t, 200, t, fill='blue')
+			# 放大
+			tt = 300 - int(((data[8] - romtd) / romtt) * 300)
+			cvs1.create_line(0, tt, 200, tt, fill='blue')
+			cvs1.create_text(100, tt - 5, text="平台变量区 " + hex(data[8]))
+			# 画 E2P_IMAGE_START
+			t = nvmy1 - int(((data[10] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
+			cvs.create_line(0, t, 200, t, fill='blue')
+			# 放大
+			tt = 300 - int(((data[10] - romtd) / romtt) * 300)
+			cvs1.create_line(0, tt, 200, tt, fill='blue')
+			cvs1.create_text(100, tt - 5, text="E2P表起始地址 " + hex(data[10]))
 
+			tt = 300 - int(((data[10] + data[18] - romtd) / romtt) * 300)
+			cvs1.create_line(0, tt+18, 200, tt+18, fill='blue')
+			cvs1.create_text(100, tt + 8, text="用户可用的E2P表起始地址 " )
+			cvs1.create_text(100, tt + 16, text=hex(data[10] + data[18]))
 
+			# 画 EEP_BACKUP_AREA
+			t = nvmy1 - int(((data[11] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
+			cvs.create_line(0, t, 200, t, fill='blue')
+			cvs.create_text(100, t + 5, text="EEP_BACKUP_AREA " + hex(data[11]))
+
+			# 画  RAMBase
+			t = int((ramy1 + ramy2)/2)
+			cvs.create_line(0, t+20, 200, t+20, fill='blue')
+			cvs.create_text(100, t + 15, text="RAMBase " + hex(data[15]))
+			cvs.create_line(0, t - 20, 200, t-20, fill='blue')
+			cvs.create_text(100, t - 25, text="RAMend " + hex(data[15] + data[16]))
+			cvs.create_text(100, t-5, text="RAMSize " + str(int(data[16]/1024))+"K")
+
+	def showfileerror(self,file):
+		tk.messagebox.showinfo(title='错误', message=file + '错误!')
+
+	def openfile(self,flag,ent):
+		self.filelist[flag] = askopenfilename(initialdir = 'C:/')
+		if self.filelist[0] is not None:
+			if "mask.c" not in self.filelist[0]:
+				self.showfileerror("请选择mask.c")
+		if self.filelist[1] is not None:
+			if "target.h" not in self.filelist[1]:
+				self.showfileerror("请选择target.h")
+		if self.filelist[2] is not None:
+			if "NvmDefaultData.c" not in self.filelist[2]:
+				self.showfileerror("请选择NvmDefaultData.c")
+		if self.filelist[3] is not None:
+			if ".map" not in self.filelist[3]:
+				self.showfileerror("请选择map")
 
 	def SetProPath(self):
-		pass
+		color1 = '#B01415'
+		SetPath = tk.Toplevel()
+		SetPathB0 =  tk.Button(SetPath,text="选择C层mask",command=lambda:self.openfile(0))
+		SetPathB0.grid(row=0, column=1, padx= 8,pady= 4, sticky='ew')
+
+		SetPathB1 =  tk.Button(SetPath,text="选择C层target",command=lambda:self.openfile(1))
+		SetPathB1.grid(row=1, column=1, padx= 8,pady= 4, sticky='ew')
+
+		SetPathB2 =  tk.Button(SetPath,text="选择C层map",command=lambda:self.openfile(2))
+		SetPathB2.grid(row=2, column=1, padx= 8,pady= 4, sticky='ew')
+
+		SetPathB3 =  tk.Button(SetPath,text="选择C层NvmDefaultData",command=lambda:self.openfile(3))
+		SetPathB3.grid(row=3, column=1, padx= 8,pady= 4, sticky='ew')
+
+		SetPathB4 = tk.Button(SetPath, text="选择JAVA层cfg",command=lambda:self.openfile(4))
+		SetPathB4.grid(row=4, column=1, padx=8, pady=4, sticky='ew')
+		# file0 = askopenfilename(defaultextension = '.c')
+		# print(file0)
+		# file1 = askopenfilename(defaultextension='.c')
+		# print(file1)
 	def MemAnalysis(self):
 		ROMSIZE, PEEPROM_IMAGE_SIZE = getcmaskMSM(filemask)
 		ROMBASE, E2BASE = getjavaMSM(filecref,None,None)
@@ -392,13 +489,13 @@ class Application(tk.Frame):
 			print(hex(s))
 		self.Basic_infor(datalist,None)
 		self.create_Canvas(datalist)
-		# for s in datalist:
-		# 	print(hex(s))
-		# getctarget(filetarget)
-			
+	# for s in datalist:
+	# 	print(hex(s))
+	# getctarget(filetarget)
+
 	def MemModify(self):
 		pass
-			
+
 
 	def CheckMap(self):
 		self.create_Canvas(1)
@@ -431,4 +528,12 @@ root = tk.Tk()
 app = Application(master=root)
 app.mainloop()
 
+
+# returndata = [g_ConfigSize,
+# 1			  JC_EEPROM_BASE, EEPROM_LIMIT, EEPAGE_SIZE, ROMBase,
+# 5			  NVMBase, OS_PARA_DATA_FIELD_START, OS_PARA_DATA_FIELD_SIZE, OS_VARIABLE_FIELD_START,
+# 9			  OS_VARIABLE_FIELD_SIZE, E2P_IMAGE_START, EEP_BACKUP_AREA, EEP_BACKUP_AREA_SIZE,
+# 13		  JC_RAM_BASE, RAM_LIMIT, RAMBase, RAMSize
+# 17          ROMSIZE,PEEPROM_IMAGE_SIZE,g_ConfigSize
+# 			  ]
 
