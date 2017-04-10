@@ -3,11 +3,17 @@ import tkinter as tk
 from tkinter.filedialog import  askopenfilename
 import tkinter.messagebox
 
+global fileNvm
+global filetarget
+global filecref
+global filemap
+filecref = None
+filetarget = None
+filemap = None
+fileNvm = None
 
-filemask = 'C:/Users/Administrator/Desktop/JavaCOS 空间修改器/c/mask.c'
-fileNvm = 'C:/Users/Administrator/Desktop/JavaCOS 空间修改器/c/NvmDefaultData.c'
-filetarget = 'C:/Users/Administrator/Desktop/JavaCOS 空间修改器/c/target.h'
-filecref =  'C:/Users/Administrator/Desktop/JavaCOS 空间修改器/java/cref_mask.cfg'
+# filemask = 'C:/Users/Administrator/Desktop/JavaCOS 空间修改器/c/mask.c'
+
 
 
 		
@@ -19,6 +25,7 @@ def cur_file_dir():
 		return path
 	elif os.path.isfile(path):
 		return os.path.dirname(path)
+
 
 # getjavaMSM(filecref,"0x10032000","0x10063A00")
 def getjavaMSM(file, rombase, e2base):
@@ -293,6 +300,30 @@ class Application(tk.Frame):
 		self.create_Canvas(None)
 		self.Basic_infor(None,None)
 		self.filelist = [None,None,None,None,None]
+		self.loadconfg()
+
+	def loadconfg(self):
+		path = cur_file_dir()
+		try:
+			paths = open(path + '\confg.txt').readlines()
+
+			for file in paths:
+				if "target" in file:
+					global filetarget
+					filetarget = file.strip('\n')
+				elif "NvmDefaultData" in file:
+					global fileNvm
+					fileNvm = file.strip('\n')
+				elif "cfg" in file:
+					global filecref
+					filecref = file[5:].strip('\n')
+				elif "map" in file:
+					global filemap
+					filemap = file.strip('\n')
+		except:
+			pass
+
+
 
 	def create_Mainwidgets(self):
 		self.ProPath = tk.Button(self)
@@ -439,38 +470,93 @@ class Application(tk.Frame):
 	def showfileerror(self,file):
 		tk.messagebox.showinfo(title='错误', message=file + '错误!')
 
-	def openfile(self,flag,ent):
-		self.filelist[flag] = askopenfilename(initialdir = 'C:/')
+	def openfile(self,flag,frame):
+		titlelist = ['请选择target.h','请选择NvmDefaultData.c','请选择.cfg','请选择.map']
+		self.filelist[flag] = askopenfilename(title=titlelist[flag],initialdir = 'C:/')
 		if self.filelist[0] is not None:
-			if "mask.c" not in self.filelist[0]:
-				self.showfileerror("请选择mask.c")
-		if self.filelist[1] is not None:
-			if "target.h" not in self.filelist[1]:
+			if "target.h" not in self.filelist[0]:
 				self.showfileerror("请选择target.h")
-		if self.filelist[2] is not None:
-			if "NvmDefaultData.c" not in self.filelist[2]:
+			else:
+				target = tk.StringVar()
+				targetent = tk.Entry(frame, textvariable=target,width =50)
+				targetent.grid(row=0, column=1, sticky='w', columnspan=2)
+				target.set(self.filelist[0])
+
+		if self.filelist[1] is not None:
+			if "NvmDefaultData.c" not in self.filelist[1]:
 				self.showfileerror("请选择NvmDefaultData.c")
+			else:
+				nvm = tk.StringVar()
+				nvment = tk.Entry(frame, textvariable=nvm, width=50)
+				nvment.grid(row=1, column=1, sticky='w', columnspan=2)
+				nvm.set(self.filelist[1])
+		if self.filelist[2] is not None:
+			if ".cfg" not in self.filelist[2]:
+				self.showfileerror("请选择.cfg")
+			else:
+				cref = tk.StringVar()
+				crefent = tk.Entry(frame, textvariable=cref, width=50)
+				crefent.grid(row=2, column=1, sticky='w', columnspan=2)
+				cref.set(self.filelist[2])
 		if self.filelist[3] is not None:
 			if ".map" not in self.filelist[3]:
-				self.showfileerror("请选择map")
+				self.showfileerror("请选择.map")
+			else:
+				map = tk.StringVar()
+				mapent = tk.Entry(frame, textvariable=map, width=50)
+				mapent.grid(row=3, column=1, sticky='w', columnspan=2)
+				map.set(self.filelist[3])
+		# frame.wm_attributes('-topmost', 1)  # 置顶
+
+		path = cur_file_dir()
+		try:
+			fb = open(path + '\confg.txt','w')
+			for l in self.filelist:
+				fb.write(l)
+			fb.close()
+		except:
+			pass
 
 	def SetProPath(self):
 		color1 = '#B01415'
+		global fileNvm
+		global filetarget
+		global filecref
+		global filemap
+
+
 		SetPath = tk.Toplevel()
-		SetPathB0 =  tk.Button(SetPath,text="选择C层mask",command=lambda:self.openfile(0))
-		SetPathB0.grid(row=0, column=1, padx= 8,pady= 4, sticky='ew')
+		SetPathB0 =  tk.Button(SetPath,text="选择C层target",command=lambda:self.openfile(0,SetPath))
+		SetPathB0.grid(row=0, column=0, padx= 8,pady= 4, sticky='ew')
 
-		SetPathB1 =  tk.Button(SetPath,text="选择C层target",command=lambda:self.openfile(1))
-		SetPathB1.grid(row=1, column=1, padx= 8,pady= 4, sticky='ew')
+		if filetarget is not None:
+			target = tk.StringVar()
+			targetent = tk.Entry(SetPath, textvariable=target,width =50)
+			targetent.grid(row=0, column=1, sticky='w', columnspan=2)
+			target.set(filetarget)
 
-		SetPathB2 =  tk.Button(SetPath,text="选择C层map",command=lambda:self.openfile(2))
-		SetPathB2.grid(row=2, column=1, padx= 8,pady= 4, sticky='ew')
+		SetPathB1 =  tk.Button(SetPath,text="选择C层NvmDefaultData",command=lambda:self.openfile(1,SetPath))
+		SetPathB1.grid(row=1, column=0, padx= 8,pady= 4, sticky='ew')
+		if fileNvm is not None:
+			nvm = tk.StringVar()
+			nvment = tk.Entry(SetPath, textvariable=nvm,width =50)
+			nvment.grid(row=1, column=1, sticky='w', columnspan=2)
+			nvm.set(fileNvm)
+		SetPathB2 = tk.Button(SetPath, text="选择JAVA层cfg",command=lambda:self.openfile(2,SetPath))
+		SetPathB2.grid(row=2, column=0, padx=8, pady=4, sticky='ew')
+		if filecref is not None:
+			cref = tk.StringVar()
+			crefent = tk.Entry(SetPath, textvariable=cref,width =50)
+			crefent.grid(row=2, column=1, sticky='w', columnspan=2)
+			cref.set(filecref)
+		SetPathB3 =  tk.Button(SetPath,text="选择C层map",command=lambda:self.openfile(3,SetPath))
+		SetPathB3.grid(row=3, column=0, padx= 8,pady= 4, sticky='ew')
+		if filemap is not None:
+			map = tk.StringVar()
+			mapent = tk.Entry(SetPath, textvariable=map,width =50)
+			mapent.grid(row=3, column=1, sticky='w', columnspan=2)
+			map.set(filemap)
 
-		SetPathB3 =  tk.Button(SetPath,text="选择C层NvmDefaultData",command=lambda:self.openfile(3))
-		SetPathB3.grid(row=3, column=1, padx= 8,pady= 4, sticky='ew')
-
-		SetPathB4 = tk.Button(SetPath, text="选择JAVA层cfg",command=lambda:self.openfile(4))
-		SetPathB4.grid(row=4, column=1, padx=8, pady=4, sticky='ew')
 		# file0 = askopenfilename(defaultextension = '.c')
 		# print(file0)
 		# file1 = askopenfilename(defaultextension='.c')
