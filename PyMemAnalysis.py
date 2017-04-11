@@ -2,16 +2,27 @@ import  os,sys,linecache,codecs
 import tkinter as tk
 from tkinter.filedialog import  askopenfilename
 import tkinter.messagebox
+import re
 
 global fileNvm
 global filetarget
 global filecref
 global filemap
+
+global flashline
+global flashcnt
+global ramline
+global ramcnt
+
 filecref = None
 filetarget = None
 filemap = None
 fileNvm = None
 
+flashline = None
+flashcnt = None
+ramline = None
+ramcnt = None
 # filemask = 'C:/Users/Administrator/Desktop/JavaCOS 空间修改器/c/mask.c'
 
 
@@ -25,6 +36,68 @@ def cur_file_dir():
 		return path
 	elif os.path.isfile(path):
 		return os.path.dirname(path)
+
+# returndata = [g_ConfigSize,
+# 1			  JC_EEPROM_BASE, EEPROM_LIMIT, EEPAGE_SIZE, ROMBase,
+# 5			  NVMBase, OS_PARA_DATA_FIELD_START, OS_PARA_DATA_FIELD_SIZE, OS_VARIABLE_FIELD_START,
+# 9			  OS_VARIABLE_FIELD_SIZE, E2P_IMAGE_START, EEP_BACKUP_AREA, EEP_BACKUP_AREA_SIZE,
+# 13		  JC_RAM_BASE, RAM_LIMIT, RAMBase, RAMSize
+# 17          g_ConfigSize
+# 			  ]
+#	getmap(file,self.datalist[1],self.datalist[2],self.datalist[5],self.datalist[13],self.datalist[14], self.datalist[15], self.datalist[16]):
+def getmap(file,JC_EEPROM_BASE,EEPROM_LIMIT,NVMBase,JC_RAM_BASE,RAM_LIMIT, RAMBase, RAMSize):
+	rommask = 0
+	staticinit = 0
+
+	flashmax = [JC_EEPROM_BASE,0]
+	rammax =[JC_RAM_BASE,0]
+
+	fline = open(file).readlines()
+	if "ARM Linker" in fline[0]:
+		Keilflag = True
+	else:
+		Keilflag = False
+	cnt = 0
+	for msm in fline:
+		if Keilflag is True:
+			index0 = msm.find("0x")
+			index1 = msm.find(" ", index0)
+			index0 = msm.find(" ", index1)
+
+			if "mask.o" in msm:
+				if "rommask" in msm:
+					rommask = msm[index1:]
+					rommask = re.sub("\D", "", rommask)
+				if  "staticinit" in msm:
+					staticinit = msm[index1:]
+					staticinit = re.sub("\D", "", staticinit)
+			try:
+				num = int(msm[index0+2:index1],16)
+				if  num >= JC_EEPROM_BASE and num  <= EEPROM_LIMIT:
+					if num > flashmax[0]:
+						if "init"  not in  msm  :
+							if "nvmdefaultdata" not in msm:
+								size = msm.replace(hex(num),"")
+								size = re.sub("\D", "", size)
+								flashmax[0] = num
+								flashmax[1]= int(size)
+
+				if  num >= JC_RAM_BASE and num  <= RAM_LIMIT:
+					if num > rammax[0]:
+						rammax[0] = num
+						rammax[1] = cnt
+
+			except:
+				pass
+
+
+		else:
+			pass
+
+		cnt += 1
+
+
+
 
 
 # getjavaMSM(filecref,"0x10032000","0x10063A00")
@@ -299,14 +372,14 @@ class Application(tk.Frame):
 		self.create_Mainwidgets()
 		self.create_Canvas(None)
 		self.Basic_infor(None,None)
-		self.filelist = [None,None,None,None,None]
+		self.filelist = [None,None,None,None,None,None,None,None]
 		self.loadconfg()
+		self.datalist = []
 
 	def loadconfg(self):
 		path = cur_file_dir()
 		try:
 			paths = open(path + '\confg.txt').readlines()
-
 			for file in paths:
 				if "target" in file:
 					global filetarget
@@ -314,12 +387,25 @@ class Application(tk.Frame):
 				elif "NvmDefaultData" in file:
 					global fileNvm
 					fileNvm = file.strip('\n')
-				elif "cfg" in file:
+				elif ".cfg" in file:
 					global filecref
-					filecref = file[5:].strip('\n')
-				elif "map" in file:
+					filecref = file.strip('\n')
+				elif ".map" in file:
 					global filemap
 					filemap = file.strip('\n')
+				elif "flashline:" in file:
+					global flashline
+					flashline = file.strip('\n').replace("flashline:", "")
+				elif "flashcnt:" in file:
+					global flashcnt
+					flashcnt =int( file.strip('\n').replace("flashcnt:", ""))
+				elif "ramline:" in file:
+					global ramline
+					ramline = file.strip('\n').replace("ramline:", "")
+				elif "ramcnt:" in file:
+					global ramcnt
+					ramcnt =int( file.strip('\n').replace("ramcnt:", ""))
+
 		except:
 			pass
 
@@ -396,63 +482,66 @@ class Application(tk.Frame):
 			cvs.create_line(0,t , 200, t , fill='blue')
 			cvs.create_text(100, t - 5,  text="ROMBase    " + hex(data[4]))
 			# rommask  staticinit
-			t0 = int(((data[17]) /romt)*(nvmy1 - nvmy2))
-			t1 = t - int(t0/2)
-			t2 = t - t0
-			cvs.create_line(0,t2 , 200, t2 , fill='red', dash=(4, 4))
-			cvs.create_text(100, t1 - 5,  text="rommask    " + hex(data[17]))
-			cvs.create_text(100, t2 - 5,  text="staticinit " + hex(data[18]))
+			# t0 = int(((data[17]) /romt)*(nvmy1 - nvmy2))
+			# t1 = t - int(t0/2)
+			# t2 = t - t0
+			# cvs.create_line(0,t2 , 200, t2 , fill='red', dash=(4, 4))
+			# cvs.create_text(100, t1 - 5,  text="rommask    " + hex(data[17]))
+			# cvs.create_text(100, t2 - 5,  text="staticinit " + hex(data[18]))
 
-			# 放大
-			tt = 300
-			romtd = data[4] +data[17]
-			romtt = data[10]+data[18] - romtd
+			# # 放大
+			# tt = 300
+			# romtd = data[4] +data[17]
+			# romtt = data[10]+data[18] - romtd
 
-			print(hex(romtt))
-			cvs1.create_line(0, tt, 200, tt, fill='blue')
-			cvs1.create_text(100, tt-5 , text="staticinit start addr " + hex(data[4] +data[17] ))
-			tt =300 - int(((data[18]) / romtt) * 300)
-			cvs1.create_line(0, tt, 200, tt, fill='blue')
-			cvs1.create_text(100, tt + 5, text="staticinit end addr " + hex(data[4] + data[17] + data[18]))
-			# staticinit
-			cvs1.create_text(100, int((tt + 300)/2), text="staticinit " + hex(data[18]))
+			# print(hex(romtt))
+			# cvs1.create_line(0, tt, 200, tt, fill='blue')
+			# cvs1.create_text(100, tt-5 , text="staticinit start addr " + hex(data[4] +data[17] ))
+			# tt =300 - int(((data[18]) / romtt) * 300)
+			# cvs1.create_line(0, tt, 200, tt, fill='blue')
+			# cvs1.create_text(100, tt + 5, text="staticinit end addr " + hex(data[4] + data[17] + data[18]))
+			# # staticinit
+			# cvs1.create_text(100, int((tt + 300)/2), text="staticinit " + hex(data[18]))
 
 			#画 NVMBase
 			t = nvmy1 - int(((data[5]-data[1] +1) /romt)*(nvmy1 - nvmy2))
 			cvs.create_line(0,t , 200, t , fill='blue')
-			# cvs.create_text(100, t - 5,  text="NVMBase    " + hex(data[5]))
+			cvs.create_text(100, t + 5,  text="NVMBase    " + hex(data[5]))
 
-			# 放大
-			tt = 300 - int(((data[5] - romtd ) / romtt) * 300)
-			cvs1.create_line(0,tt , 200, tt , fill='blue')
-			cvs1.create_text(100, tt - 5, text="NVMBase    " + hex(data[5]))
+			# # 放大
+			# tt = 300 - int(((data[5] - romtd ) / romtt) * 300)
+			# cvs1.create_line(0,tt , 200, tt , fill='blue')
+			# cvs1.create_text(100, tt - 5, text="NVMBase    " + hex(data[5]))
 
 			# 画 OS_PARA_DATA_FIELD_START
 			t = nvmy1 - int(((data[6] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
-			cvs.create_line(0, t, 200, t, fill='blue')
-			# 放大
-			tt = 300 - int(((data[6] - romtd ) / romtt) * 300)
-			cvs1.create_line(0,tt , 200, tt , fill='blue')
-			cvs1.create_text(100, tt - 5, text="平台配置区 " + hex(data[6]))
+			cvs.create_line(0, t, 200, t, fill='red')
+			cvs.create_text(100, t -20, text="平台配置区(红色)" + hex(data[6]))
+			# # 放大
+			# tt = 300 - int(((data[6] - romtd ) / romtt) * 300)
+			# cvs1.create_line(0,tt , 200, tt , fill='blue')
+			# cvs1.create_text(100, tt - 5, text="平台配置区 " + hex(data[6]))
 			# 画 OS_VARIABLE_FIELD_START
 			t = nvmy1 - int(((data[8] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
-			cvs.create_line(0, t, 200, t, fill='blue')
-			# 放大
-			tt = 300 - int(((data[8] - romtd) / romtt) * 300)
-			cvs1.create_line(0, tt, 200, tt, fill='blue')
-			cvs1.create_text(100, tt - 5, text="平台变量区 " + hex(data[8]))
+			cvs.create_line(0, t, 200, t, fill='purple')
+			cvs.create_text(100, t - 30, text="平台变量区(紫色)" + hex(data[8]))
+			# # 放大
+			# tt = 300 - int(((data[8] - romtd) / romtt) * 300)
+			# cvs1.create_line(0, tt, 200, tt, fill='blue')
+			# cvs1.create_text(100, tt - 5, text="平台变量区 " + hex(data[8]))
 			# 画 E2P_IMAGE_START
 			t = nvmy1 - int(((data[10] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
-			cvs.create_line(0, t, 200, t, fill='blue')
+			cvs.create_line(0, t, 200, t, fill='yellow')
+			cvs.create_text(100, t - 40, text="E2P表起始地址(黄色)" + hex(data[10]))
 			# 放大
-			tt = 300 - int(((data[10] - romtd) / romtt) * 300)
-			cvs1.create_line(0, tt, 200, tt, fill='blue')
-			cvs1.create_text(100, tt - 5, text="E2P表起始地址 " + hex(data[10]))
+			# tt = 300 - int(((data[10] - romtd) / romtt) * 300)
+			# cvs1.create_line(0, tt, 200, tt, fill='blue')
+			# cvs1.create_text(100, tt - 5, text="E2P表起始地址 " + hex(data[10]))
 
-			tt = 300 - int(((data[10] + data[18] - romtd) / romtt) * 300)
-			cvs1.create_line(0, tt+18, 200, tt+18, fill='blue')
-			cvs1.create_text(100, tt + 8, text="用户可用的E2P表起始地址 " )
-			cvs1.create_text(100, tt + 16, text=hex(data[10] + data[18]))
+			# tt = 300 - int(((data[10] + data[18] - romtd) / romtt) * 300)
+			# cvs1.create_line(0, tt+18, 200, tt+18, fill='blue')
+			# cvs1.create_text(100, tt + 8, text="用户可用的E2P表起始地址 " )
+			# cvs1.create_text(100, tt + 16, text=hex(data[10] + data[18]))
 
 			# 画 EEP_BACKUP_AREA
 			t = nvmy1 - int(((data[11] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
@@ -472,7 +561,16 @@ class Application(tk.Frame):
 
 	def openfile(self,flag,frame):
 		titlelist = ['请选择target.h','请选择NvmDefaultData.c','请选择.cfg','请选择.map']
-		self.filelist[flag] = askopenfilename(title=titlelist[flag],initialdir = 'C:/')
+		dirlist = ['C:/','C:/','C:/','C:/']
+		if self.filelist[0] is not None:
+			dirlist[1] = self.filelist[0].replace("target.h","")
+			dirlist[2] = self.filelist[0][:2]
+			dirlist[3] = self.filelist[0][:2]
+
+		self.filelist[flag] = askopenfilename(title=titlelist[flag],initialdir = dirlist[flag])
+
+		if self.filelist[flag] == "":
+			self.filelist[flag] = None
 		if self.filelist[0] is not None:
 			if "target.h" not in self.filelist[0]:
 				self.showfileerror("请选择target.h")
@@ -506,16 +604,72 @@ class Application(tk.Frame):
 				mapent = tk.Entry(frame, textvariable=map, width=50)
 				mapent.grid(row=3, column=1, sticky='w', columnspan=2)
 				map.set(self.filelist[3])
-		# frame.wm_attributes('-topmost', 1)  # 置顶
 
+
+		frame.wm_attributes('-topmost', 1)  # 置顶
 		path = cur_file_dir()
 		try:
-			fb = open(path + '\confg.txt','w')
+			fb = open(path + '\confg.txt', 'w')
+
 			for l in self.filelist:
-				fb.write(l)
+				pathtext = l + "\n"
+				fb.write(pathtext)
 			fb.close()
 		except:
 			pass
+		self.loadconfg()
+	def setpath(self):
+		SetPath1 = tk.Toplevel()
+		flashlinelab = tk.Label(SetPath1, text="Flash指定参考内容和偏移")
+		flashlinelab.grid(row=4, column=0, padx=8, pady=4, sticky='ew', columnspan=2)
+		flashlines = tk.StringVar()
+		flashlineent = tk.Entry(SetPath1, textvariable=flashlines, width=30)
+		flashlineent.grid(row=4, column=2, sticky='w', columnspan=2)
+		flashlines.set(flashline)
+		flashcnts = tk.StringVar()
+		flashcntent = tk.Entry(SetPath1, textvariable=flashcnts, width=10)
+		flashcntent.grid(row=4, column=4, sticky='w', columnspan=2)
+		flashcnts.set(flashcnt)
+
+		ramlinelab = tk.Label(SetPath1, text="RAM指定参考内容和偏移")
+		ramlinelab.grid(row=5, column=0, padx=8, pady=4, sticky='ew')
+		ramlines = tk.StringVar()
+		ramlineent = tk.Entry(SetPath1, textvariable=ramlines, width=30)
+		ramlineent.grid(row=5, column=1, sticky='w', columnspan=2)
+		ramlines.set(ramline)
+		ramcnts = tk.StringVar()
+		ramcntent = tk.Entry(SetPath1, textvariable=ramcnts, width=10)
+		ramcntent.grid(row=5, column=4, sticky='w', columnspan=2)
+		ramcnts.set(ramcnt)
+
+
+
+		savetext =  tk.Button(SetPath1,text="保存",command=lambda:self.savepath(SetPath1,flashlines,flashcnts,ramlines,ramcnts))
+		savetext.grid(row=7, column=0, padx= 8,pady= 4, sticky='ew')
+	def savepath(self,frame,flashlines,flashcnts,ramlines,ramcnts):
+		global flashline
+		global flashcnt
+		global ramline
+		global ramcnt
+
+		flashline = "flashline:" + flashlines.get()
+		flashcnt = "flashcnt:" + flashcnts.get()
+		ramline = "ramline:" + ramlines.get()
+		ramcnt = "ramcnt:" + ramcnts.get()
+
+		print(self.filelist)
+		path = cur_file_dir()
+		try:
+			fb = open(path + '\confg.txt', 'w')
+
+			for l in self.filelist:
+				pathtext = l + "\n"
+				fb.write(pathtext)
+			fb.close()
+		except:
+			pass
+		self.loadconfg()
+
 
 	def SetProPath(self):
 		color1 = '#B01415'
@@ -523,6 +677,10 @@ class Application(tk.Frame):
 		global filetarget
 		global filecref
 		global filemap
+		global flashline
+		global flashcnt
+		global ramline
+		global ramcnt
 
 
 		SetPath = tk.Toplevel()
@@ -532,7 +690,7 @@ class Application(tk.Frame):
 		if filetarget is not None:
 			target = tk.StringVar()
 			targetent = tk.Entry(SetPath, textvariable=target,width =50)
-			targetent.grid(row=0, column=1, sticky='w', columnspan=2)
+			targetent.grid(row=0, column=1, sticky='w', columnspan=5)
 			target.set(filetarget)
 
 		SetPathB1 =  tk.Button(SetPath,text="选择C层NvmDefaultData",command=lambda:self.openfile(1,SetPath))
@@ -540,41 +698,49 @@ class Application(tk.Frame):
 		if fileNvm is not None:
 			nvm = tk.StringVar()
 			nvment = tk.Entry(SetPath, textvariable=nvm,width =50)
-			nvment.grid(row=1, column=1, sticky='w', columnspan=2)
+			nvment.grid(row=1, column=1, sticky='w', columnspan=5)
 			nvm.set(fileNvm)
 		SetPathB2 = tk.Button(SetPath, text="选择JAVA层cfg",command=lambda:self.openfile(2,SetPath))
 		SetPathB2.grid(row=2, column=0, padx=8, pady=4, sticky='ew')
 		if filecref is not None:
 			cref = tk.StringVar()
 			crefent = tk.Entry(SetPath, textvariable=cref,width =50)
-			crefent.grid(row=2, column=1, sticky='w', columnspan=2)
+			crefent.grid(row=2, column=1, sticky='w', columnspan=5)
 			cref.set(filecref)
 		SetPathB3 =  tk.Button(SetPath,text="选择C层map",command=lambda:self.openfile(3,SetPath))
 		SetPathB3.grid(row=3, column=0, padx= 8,pady= 4, sticky='ew')
 		if filemap is not None:
 			map = tk.StringVar()
 			mapent = tk.Entry(SetPath, textvariable=map,width =50)
-			mapent.grid(row=3, column=1, sticky='w', columnspan=2)
+			mapent.grid(row=3, column=1, sticky='w', columnspan=5)
 			map.set(filemap)
 
-		# file0 = askopenfilename(defaultextension = '.c')
-		# print(file0)
-		# file1 = askopenfilename(defaultextension='.c')
-		# print(file1)
+		SetPath = tk.Button(SetPath,text="设置map检查参考",command=self.setpath)
+		SetPath.grid(row=6, column=0, sticky='ew')
+
+
+
 	def MemAnalysis(self):
-		ROMSIZE, PEEPROM_IMAGE_SIZE = getcmaskMSM(filemask)
+		# ROMSIZE, PEEPROM_IMAGE_SIZE = getcmaskMSM(filemask)
 		ROMBASE, E2BASE = getjavaMSM(filecref,None,None)
-		datalist = getctarget(filetarget,None,None,None,None)
-		t = ModifycnvmMSM(fileNvm,None)
-		ConfigSize = t[0][2:]+t[1][2:]+t[2][2:]+t[3][2:]
-		ConfigSize = int(ConfigSize,16)
-		datalist.append(int(ROMSIZE,10))
-		datalist.append(int(PEEPROM_IMAGE_SIZE,10))
-		datalist.append(ConfigSize)
-		for s in datalist:
-			print(hex(s))
-		self.Basic_infor(datalist,None)
-		self.create_Canvas(datalist)
+		try:
+			self.datalist = getctarget(filetarget,None,None,None,None)
+			t = ModifycnvmMSM(fileNvm,None)
+			ConfigSize = t[0][2:]+t[1][2:]+t[2][2:]+t[3][2:]
+			ConfigSize = int(ConfigSize,16)
+			# datalist.append(int(ROMSIZE,10))
+			# datalist.append(int(PEEPROM_IMAGE_SIZE,10))
+			self.datalist.append(ConfigSize)
+			# for s in datalist:
+			# 	print(hex(s))
+			self.Basic_infor(self.datalist,None)
+			self.create_Canvas(self.datalist)
+			self.flag = True
+
+		except ValueError:
+			tk.messagebox.showinfo(title='错误', message="target.h中宏定义大小 XX_SIZE 为 0x200形式，不要写成0x100+0x100或0x200UL，"+
+													   "宏定义地址为 JC_RAM_BASE 	((memref)0x20000000UL)")
+
 	# for s in datalist:
 	# 	print(hex(s))
 	# getctarget(filetarget)
@@ -584,7 +750,15 @@ class Application(tk.Frame):
 
 
 	def CheckMap(self):
-		self.create_Canvas(1)
+		global filemap
+
+		if self.flag is  True:
+			getmap(filemap,self.datalist[1],self.datalist[2],self.datalist[5],self.datalist[13],self.datalist[14], self.datalist[15], self.datalist[16])
+		else:
+			tk.messagebox.showinfo(title='错误', message="请先执行分析")
+
+
+
 
 	def Basic_infor(self,data,map):
 		Basic_infor = tk.Text(self, width=20, height=15, bg="lightblue")
@@ -593,10 +767,11 @@ class Application(tk.Frame):
 			Basic_infor.insert(1.0, "NVM 页大小："+hex(data[3])+" （"+str(data[3])+"） " +"\n" )
 			Basic_infor.insert(2.0, "NVM 总空间：" + str(int((data[2] - data[1] +1)/1024)) +"K"+ "\n")
 			Basic_infor.insert(3.0, "RAM 总空间：" + str(int((data[14] - data[13] + 1) / 1024)) + "K" + "\n")
-			Basic_infor.insert(4.0, "JAVA占用NVM空间：" + str(int((data[17] + data[18]) / 1024)) + "K" + "\n")
+			# Basic_infor.insert(4.0, "JAVA占用NVM空间：" + str(int((data[17] + data[18]) / 1024)) + "K" + "\n")
+			Basic_infor.insert(4.0, "\n")
 			Basic_infor.insert(5.0, "JAVA分配RAM空间：" + str(int((data[16]) / 1024)) + "K" + "\n")
 			Basic_infor.insert(6.0, "平台占用NVM空间：" + str(int((data[10] - data[5] + 1) / 1024)) + "K" + "\n")
-			if data[19] != data[0]:
+			if data[17] != data[0]:
 				Basic_infor.insert(7.0, "警告："+ "\n" )
 				Basic_infor.insert(8.0, "NvmDefaultData中的E2P_CONFIG_SIZE有误！"+"\n")
 			else:
@@ -620,6 +795,6 @@ app.mainloop()
 # 5			  NVMBase, OS_PARA_DATA_FIELD_START, OS_PARA_DATA_FIELD_SIZE, OS_VARIABLE_FIELD_START,
 # 9			  OS_VARIABLE_FIELD_SIZE, E2P_IMAGE_START, EEP_BACKUP_AREA, EEP_BACKUP_AREA_SIZE,
 # 13		  JC_RAM_BASE, RAM_LIMIT, RAMBase, RAMSize
-# 17          ROMSIZE,PEEPROM_IMAGE_SIZE,g_ConfigSize
+# 17          g_ConfigSize
 # 			  ]
 
