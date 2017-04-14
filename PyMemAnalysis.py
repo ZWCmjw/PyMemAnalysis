@@ -23,6 +23,8 @@ flashline = None
 flashcnt = None
 ramline = None
 ramcnt = None
+global mapflag
+mapflag= False
 # filemask = 'C:/Users/Administrator/Desktop/JavaCOS 空间修改器/c/mask.c'
 
 
@@ -45,59 +47,72 @@ def cur_file_dir():
 # 17          g_ConfigSize
 # 			  ]
 #	getmap(file,self.datalist[1],self.datalist[2],self.datalist[5],self.datalist[13],self.datalist[14], self.datalist[15], self.datalist[16]):
-def getmap(file,JC_EEPROM_BASE,EEPROM_LIMIT,NVMBase,JC_RAM_BASE,RAM_LIMIT, RAMBase, RAMSize):
-	rommask = 0
-	staticinit = 0
+def getmap(file):
+	flashlineaddr = None
+	flashlinesize = None
+	ramlineaddr = None
+	ramlinesize = None
 
-	flashmax = [JC_EEPROM_BASE,0]
-	rammax =[JC_RAM_BASE,0]
+	global flashline
+	global flashcnt
+	global ramline
+	global ramcnt
 
 	fline = open(file).readlines()
-	if "ARM Linker" in fline[0]:
-		Keilflag = True
-	else:
-		Keilflag = False
+	if "ARM" in fline[0]:
+		MAPflag = "keil"
+	elif "Archive" in fline[0]:
+		MAPflag = "eclipse"
+
 	cnt = 0
 	for msm in fline:
-		if Keilflag is True:
-			index0 = msm.find("0x")
-			index1 = msm.find(" ", index0)
-			index0 = msm.find(" ", index1)
+		if MAPflag is "keil":
+			if flashline in msm:
+				maincontext = fline[cnt - int(flashcnt)]
+				index0 = maincontext.find("0x")
+				index1 = maincontext.find(" ", index0)
+				flashlineaddr = maincontext[index0+2:index1]
+				flashlineaddr = int(flashlineaddr,16)
+				endindex = len(maincontext)
+				times = endindex - index1
+				while times:
+					times -=1
+					index0 = maincontext.find(" ", index1+1)
+					index1 = maincontext.find(" ", index0+1)
+					if (index1- index0) >1:
+						try:
+							flashlinesize  = maincontext[index0+1:index1]
+							flashlinesize  = int(flashlinesize)
+							times = 0
+						except:
+							flashlinesize = 0
+			if ramline in msm:
+				maincontext = fline[cnt - int(ramcnt)]
+				index0 = maincontext.find("0x")
+				index1 = maincontext.find(" ", index0)
+				ramlineaddr = maincontext[index0 + 2:index1]
+				ramlineaddr = int(ramlineaddr,16)
+				endindex = len(maincontext)
+				times = endindex - index1
+				while times:
+					times -= 1
+					index0 = maincontext.find(" ", index1 + 1)
+					index1 = maincontext.find(" ", index0 + 1)
+					if (index1 - index0) > 1:
+						try:
+							ramlinesize  = maincontext[index0+1:index1]
+							ramlinesize  = int(ramlinesize)
+							times = 0
+						except:
+							ramlinesize = 0
 
-			if "mask.o" in msm:
-				if "rommask" in msm:
-					rommask = msm[index1:]
-					rommask = re.sub("\D", "", rommask)
-				if  "staticinit" in msm:
-					staticinit = msm[index1:]
-					staticinit = re.sub("\D", "", staticinit)
-			try:
-				num = int(msm[index0+2:index1],16)
-				if  num >= JC_EEPROM_BASE and num  <= EEPROM_LIMIT:
-					if num > flashmax[0]:
-						if "init"  not in  msm  :
-							if "nvmdefaultdata" not in msm:
-								size = msm.replace(hex(num),"")
-								size = re.sub("\D", "", size)
-								flashmax[0] = num
-								flashmax[1]= int(size)
-
-				if  num >= JC_RAM_BASE and num  <= RAM_LIMIT:
-					if num > rammax[0]:
-						rammax[0] = num
-						rammax[1] = cnt
-
-			except:
-				pass
-
-
-		else:
+		elif MAPflag is "eclipse":
 			pass
 
 		cnt += 1
 
 
-
+	return [flashlineaddr, flashlinesize,ramlineaddr,ramlinesize]
 
 
 # getjavaMSM(filecref,"0x10032000","0x10063A00")
@@ -147,7 +162,7 @@ def getcmaskMSM(file):
 	return getROMSIZE, getPEEPROM_IMAGE_SIZE
 
 
-newsize1 = ["0x00", "0x09", "0xA7", "0x00"]
+
 
 
 def ModifycnvmMSM(file, newsize):
@@ -369,12 +384,13 @@ class Application(tk.Frame):
 	def __init__(self, master=None):
 		super().__init__(master)
 		self.pack()
+		self.datalist = []
 		self.create_Mainwidgets()
-		self.create_Canvas(None)
+		self.create_Canvas(None,None)
 		self.Basic_infor(None,None)
 		self.filelist = [None,None,None,None,None,None,None,None]
 		self.loadconfg()
-		self.datalist = []
+
 
 	def loadconfg(self):
 		path = cur_file_dir()
@@ -430,26 +446,125 @@ class Application(tk.Frame):
 		self.TextMSM = tk.Label(self,text ="基本信息 " ,width=30,height=1,relief ='flat')
 		self.TextMSM.grid(row=0, column=3,columnspan = 6,sticky='ew')
 
+		# self.cvs1 = tk.Canvas(self, width=280, height=150, bg='white', relief='groove')
+		# self.cvs1.grid(row=7, column=3, rowspan=5, columnspan=6, padx=8, pady=4, sticky='ewn')
+		# self.cvs1.create_rectangle(2, 2, 280, 150, fill="white")
+
+		romlab = tk.Label(self, text="ROMBase")
+		romlab.grid(row=11, column=3,sticky='ew')
+
+		self.romstr = tk.StringVar()
+		self.roment = tk.Entry(self, textvariable=self.romstr, width=15)
+		self.roment.grid(row=11, column=4, columnspan=2,sticky='w')
+
+		self.subit1 = tk.Button(self)
+		self.subit1["text"] = "提交"
+		self.subit1["command"] = self.Modifyrom
+		self.subit1.grid(row=11, column=7, sticky='e')
+
+		nvmlab = tk.Label(self, text="NVMBase")
+		nvmlab.grid(row=12, column=3,sticky='ew')
+
+		self.nvmstr = tk.StringVar()
+		self.nvment = tk.Entry(self, textvariable=self.nvmstr, width=15)
+		self.nvment.grid(row=12, column=4, columnspan=2,sticky='w')
+
+		self.subit1 = tk.Button(self)
+		self.subit1["text"] = "提交"
+		self.subit1["command"] = self.Modifynvm
+		self.subit1.grid(row=12, column=7, sticky='e')
+
+		ramlab = tk.Label(self, text="RAMBase")
+		ramlab.grid(row=13, column=3,sticky='ew')
 
 
+		self.ramstr = tk.StringVar()
+		self.rament = tk.Entry(self, textvariable=self.ramstr, width=15)
+		self.rament.grid(row=13, column=4, columnspan=2,sticky='w')
 
 
-	def create_Canvas(self,data):
+		self.subit2 = tk.Button(self)
+		self.subit2["text"] = "提交"
+		self.subit2["command"] = self.Modifyram
+		self.subit2.grid(row=13, column=7, sticky='e')
+
+		ramsizelab = tk.Label(self, text="RAMSize")
+		ramsizelab.grid(row=14, column=3,sticky='ew')
+		self.ramsizestr = tk.StringVar()
+		self.ramsizeent = tk.Entry(self, textvariable=self.ramsizestr, width=15)
+		self.ramsizeent.grid(row=14, column=4, columnspan=2,sticky='w')
+
+		self.subit3 = tk.Button(self)
+		self.subit3["text"] = "提交"
+		self.subit3["command"] = self.Modifyramsize
+		self.subit3.grid(row=14, column=7, sticky='e')
+
+
+		sizelab = tk.Label(self, text="E2P_CONFIG_SIZE")
+		sizelab.grid(row=15, column=3,sticky='ew')
+
+		self.sizestr = tk.StringVar()
+		self.sizeent = tk.Entry(self, textvariable=self.sizestr, width=15)
+		self.sizeent.grid(row=15, column=4, columnspan=2,sticky='w')
+
+		self.size1str = tk.StringVar()
+		self.size1ent = tk.Entry(self, textvariable=self.size1str, width=15)
+		self.size1ent.grid(row=16, column=4, columnspan=2,sticky='w')
+
+		self.size = tk.Button(self)
+		self.size["text"] = "更正"
+		self.size["command"] = self.Modifysize
+		self.size.grid(row=16, column=7, sticky='e')
+
+	def Modifyrom(self):
+		rombase = self.romstr.get()
+
+		global mapflag
+		if mapflag:
+			list = getctarget(filetarget, rombase.upper(),None, None, None)
+			getjavaMSM(filecref, rombase, None)
+
+	def Modifynvm(self):
+		# print(getctarget(filetarget,"0X10032000","0X10060000","0x20003000","0X3C00"))
+		# getjavaMSM(filecref,"0x10032000","0x10063A00")
+		nvmbase = self.nvmstr.get()
+
+		global mapflag
+		if mapflag:
+			list = getctarget(filetarget, None, nvmbase.upper(), None, None)
+			getjavaMSM(filecref, None, hex(list[10]))
+
+	def Modifyram(self):
+		rambase = self.ramstr.get()
+		global mapflag
+		if mapflag:
+			getctarget(filetarget, None,None, rambase.upper(), None)
+
+	def Modifyramsize(self):
+		ramsize = self.ramsizestr.get()
+		global mapflag
+		if mapflag:
+			getctarget(filetarget, None,None, None, ramsize.upper())
+	def Modifysize(self):
+		global mapflag
+		if mapflag:
+			if self.sizestr.get() != self.size1str.get() :
+				# print(self.sizestr.get())
+				size = self.sizestr.get()
+				size =  "00000000" +  size[2:]
+				newsize = ["0x"+size[-8:-6],"0x"+ size[-6:-4], "0x"+size[-4:-2], "0x"+size[-2:]]
+				ModifycnvmMSM(fileNvm, newsize)
+				self.size1str.set(self.sizestr.get())
+
+	def create_Canvas(self,data,map):
 		# flat, groove, raised, ridge, solid, or sunken
 		cvs = tk.Canvas(self,width=200, height=600,bg = 'white',relief ='groove')
-		cvs.grid(row=1, column=0,rowspan=16 ,columnspan=3, padx= 8,pady= 4, sticky='ew')
+		cvs.grid(row=1, column=0,rowspan=20 ,columnspan=3, padx= 8,pady= 4, sticky='ew')
 		cvs.create_rectangle(2, 2, 200, 600, fill="white")
+
+
 		if data is not None:
-			cvs1 = tk.Canvas(self,width=200, height=300,bg = 'white',relief ='groove')
-			cvs1.grid(row=7, column=3,rowspan=10 ,columnspan=6, padx= 8,pady= 4, sticky='ewn')
-			cvs1.create_rectangle(2, 2, 200, 300, fill="white")
-			Modify = tk.Button(self)
-			Modify["text"] = "  修改  "
-			Modify["command"] = self.MemModify
-			Modify.grid(row=16, column=8, sticky='ew')
-
 			maxsize = 600
-
 			if data[1] > data[13]:
 				ramy1 = maxsize
 				ramy2 = maxsize - 100
@@ -489,59 +604,28 @@ class Application(tk.Frame):
 			# cvs.create_text(100, t1 - 5,  text="rommask    " + hex(data[17]))
 			# cvs.create_text(100, t2 - 5,  text="staticinit " + hex(data[18]))
 
-			# # 放大
-			# tt = 300
-			# romtd = data[4] +data[17]
-			# romtt = data[10]+data[18] - romtd
 
-			# print(hex(romtt))
-			# cvs1.create_line(0, tt, 200, tt, fill='blue')
-			# cvs1.create_text(100, tt-5 , text="staticinit start addr " + hex(data[4] +data[17] ))
-			# tt =300 - int(((data[18]) / romtt) * 300)
-			# cvs1.create_line(0, tt, 200, tt, fill='blue')
-			# cvs1.create_text(100, tt + 5, text="staticinit end addr " + hex(data[4] + data[17] + data[18]))
-			# # staticinit
-			# cvs1.create_text(100, int((tt + 300)/2), text="staticinit " + hex(data[18]))
 
 			#画 NVMBase
 			t = nvmy1 - int(((data[5]-data[1] +1) /romt)*(nvmy1 - nvmy2))
 			cvs.create_line(0,t , 200, t , fill='blue')
 			cvs.create_text(100, t + 5,  text="NVMBase    " + hex(data[5]))
 
-			# # 放大
-			# tt = 300 - int(((data[5] - romtd ) / romtt) * 300)
-			# cvs1.create_line(0,tt , 200, tt , fill='blue')
-			# cvs1.create_text(100, tt - 5, text="NVMBase    " + hex(data[5]))
 
 			# 画 OS_PARA_DATA_FIELD_START
 			t = nvmy1 - int(((data[6] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
 			cvs.create_line(0, t, 200, t, fill='red')
 			cvs.create_text(100, t -20, text="平台配置区(红色)" + hex(data[6]))
-			# # 放大
-			# tt = 300 - int(((data[6] - romtd ) / romtt) * 300)
-			# cvs1.create_line(0,tt , 200, tt , fill='blue')
-			# cvs1.create_text(100, tt - 5, text="平台配置区 " + hex(data[6]))
+
 			# 画 OS_VARIABLE_FIELD_START
 			t = nvmy1 - int(((data[8] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
 			cvs.create_line(0, t, 200, t, fill='purple')
 			cvs.create_text(100, t - 30, text="平台变量区(紫色)" + hex(data[8]))
-			# # 放大
-			# tt = 300 - int(((data[8] - romtd) / romtt) * 300)
-			# cvs1.create_line(0, tt, 200, tt, fill='blue')
-			# cvs1.create_text(100, tt - 5, text="平台变量区 " + hex(data[8]))
+
 			# 画 E2P_IMAGE_START
 			t = nvmy1 - int(((data[10] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
 			cvs.create_line(0, t, 200, t, fill='yellow')
 			cvs.create_text(100, t - 40, text="E2P表起始地址(黄色)" + hex(data[10]))
-			# 放大
-			# tt = 300 - int(((data[10] - romtd) / romtt) * 300)
-			# cvs1.create_line(0, tt, 200, tt, fill='blue')
-			# cvs1.create_text(100, tt - 5, text="E2P表起始地址 " + hex(data[10]))
-
-			# tt = 300 - int(((data[10] + data[18] - romtd) / romtt) * 300)
-			# cvs1.create_line(0, tt+18, 200, tt+18, fill='blue')
-			# cvs1.create_text(100, tt + 8, text="用户可用的E2P表起始地址 " )
-			# cvs1.create_text(100, tt + 16, text=hex(data[10] + data[18]))
 
 			# 画 EEP_BACKUP_AREA
 			t = nvmy1 - int(((data[11] - data[1] + 1) / romt) * (nvmy1 - nvmy2))
@@ -577,8 +661,10 @@ class Application(tk.Frame):
 			else:
 				target = tk.StringVar()
 				targetent = tk.Entry(frame, textvariable=target,width =50)
-				targetent.grid(row=0, column=1, sticky='w', columnspan=2)
+				targetent.grid(row=0, column=1, sticky='w', columnspan=5)
 				target.set(self.filelist[0])
+				global filetarget
+				filetarget = self.filelist[0]
 
 		if self.filelist[1] is not None:
 			if "NvmDefaultData.c" not in self.filelist[1]:
@@ -586,83 +672,53 @@ class Application(tk.Frame):
 			else:
 				nvm = tk.StringVar()
 				nvment = tk.Entry(frame, textvariable=nvm, width=50)
-				nvment.grid(row=1, column=1, sticky='w', columnspan=2)
+				nvment.grid(row=1, column=1, sticky='w', columnspan=5)
 				nvm.set(self.filelist[1])
+				global fileNvm
+				fileNvm = self.filelist[1]
 		if self.filelist[2] is not None:
 			if ".cfg" not in self.filelist[2]:
 				self.showfileerror("请选择.cfg")
 			else:
 				cref = tk.StringVar()
 				crefent = tk.Entry(frame, textvariable=cref, width=50)
-				crefent.grid(row=2, column=1, sticky='w', columnspan=2)
+				crefent.grid(row=2, column=1, sticky='w', columnspan=5)
 				cref.set(self.filelist[2])
+				global filecref
+				filecref = self.filelist[2]
 		if self.filelist[3] is not None:
 			if ".map" not in self.filelist[3]:
 				self.showfileerror("请选择.map")
 			else:
 				map = tk.StringVar()
 				mapent = tk.Entry(frame, textvariable=map, width=50)
-				mapent.grid(row=3, column=1, sticky='w', columnspan=2)
+				mapent.grid(row=3, column=1, sticky='w', columnspan=5)
 				map.set(self.filelist[3])
+				global filemap
+				filemap = self.filelist[3]
 
-
-		frame.wm_attributes('-topmost', 1)  # 置顶
-		path = cur_file_dir()
-		try:
-			fb = open(path + '\confg.txt', 'w')
-
-			for l in self.filelist:
-				pathtext = l + "\n"
-				fb.write(pathtext)
-			fb.close()
-		except:
-			pass
-		self.loadconfg()
-	def setpath(self):
-		SetPath1 = tk.Toplevel()
-		flashlinelab = tk.Label(SetPath1, text="Flash指定参考内容和偏移")
-		flashlinelab.grid(row=4, column=0, padx=8, pady=4, sticky='ew', columnspan=2)
-		flashlines = tk.StringVar()
-		flashlineent = tk.Entry(SetPath1, textvariable=flashlines, width=30)
-		flashlineent.grid(row=4, column=2, sticky='w', columnspan=2)
-		flashlines.set(flashline)
-		flashcnts = tk.StringVar()
-		flashcntent = tk.Entry(SetPath1, textvariable=flashcnts, width=10)
-		flashcntent.grid(row=4, column=4, sticky='w', columnspan=2)
-		flashcnts.set(flashcnt)
-
-		ramlinelab = tk.Label(SetPath1, text="RAM指定参考内容和偏移")
-		ramlinelab.grid(row=5, column=0, padx=8, pady=4, sticky='ew')
-		ramlines = tk.StringVar()
-		ramlineent = tk.Entry(SetPath1, textvariable=ramlines, width=30)
-		ramlineent.grid(row=5, column=1, sticky='w', columnspan=2)
-		ramlines.set(ramline)
-		ramcnts = tk.StringVar()
-		ramcntent = tk.Entry(SetPath1, textvariable=ramcnts, width=10)
-		ramcntent.grid(row=5, column=4, sticky='w', columnspan=2)
-		ramcnts.set(ramcnt)
-
-
-
-		savetext =  tk.Button(SetPath1,text="保存",command=lambda:self.savepath(SetPath1,flashlines,flashcnts,ramlines,ramcnts))
-		savetext.grid(row=7, column=0, padx= 8,pady= 4, sticky='ew')
-	def savepath(self,frame,flashlines,flashcnts,ramlines,ramcnts):
+	def savepath(self,flashlines,flashcnts,ramlines,ramcnts):
+		global fileNvm
+		global filetarget
+		global filecref
+		global filemap
 		global flashline
 		global flashcnt
 		global ramline
 		global ramcnt
 
-		flashline = "flashline:" + flashlines.get()
-		flashcnt = "flashcnt:" + flashcnts.get()
-		ramline = "ramline:" + ramlines.get()
-		ramcnt = "ramcnt:" + ramcnts.get()
+		flashline = flashlines.get()
+		ramline = ramlines.get()
 
-		print(self.filelist)
+		flashcnt = flashcnts.get()
+		ramcnt = ramcnts.get()
+
+		list = [filetarget,fileNvm,filecref,filemap,"flashline:" +flashline,"flashcnt:" +flashcnt,"ramline:" + ramline,"ramcnt:" + ramcnt]
+
 		path = cur_file_dir()
 		try:
 			fb = open(path + '\confg.txt', 'w')
-
-			for l in self.filelist:
+			for l in list:
 				pathtext = l + "\n"
 				fb.write(pathtext)
 			fb.close()
@@ -681,9 +737,13 @@ class Application(tk.Frame):
 		global flashcnt
 		global ramline
 		global ramcnt
-
+		self.loadconfg()
 
 		SetPath = tk.Toplevel()
+		# SetPath.wm_attributes('-topmost', 1)  # 置顶
+		global xx
+		global yy
+		SetPath.geometry("+%d+%d" % (xx/2, yy/2))
 		SetPathB0 =  tk.Button(SetPath,text="选择C层target",command=lambda:self.openfile(0,SetPath))
 		SetPathB0.grid(row=0, column=0, padx= 8,pady= 4, sticky='ew')
 
@@ -707,6 +767,7 @@ class Application(tk.Frame):
 			crefent = tk.Entry(SetPath, textvariable=cref,width =50)
 			crefent.grid(row=2, column=1, sticky='w', columnspan=5)
 			cref.set(filecref)
+
 		SetPathB3 =  tk.Button(SetPath,text="选择C层map",command=lambda:self.openfile(3,SetPath))
 		SetPathB3.grid(row=3, column=0, padx= 8,pady= 4, sticky='ew')
 		if filemap is not None:
@@ -715,9 +776,30 @@ class Application(tk.Frame):
 			mapent.grid(row=3, column=1, sticky='w', columnspan=5)
 			map.set(filemap)
 
-		SetPath = tk.Button(SetPath,text="设置map检查参考",command=self.setpath)
-		SetPath.grid(row=6, column=0, sticky='ew')
+		flashlinelab = tk.Label(SetPath, text="Flash指定参考内容和偏移")
+		flashlinelab.grid(row=4, column=0, padx=8, pady=4, sticky='ew')
+		flashlines = tk.StringVar()
+		flashlineent = tk.Entry(SetPath, textvariable=flashlines, width=40)
+		flashlineent.grid(row=4, column=1, sticky='w', columnspan=4)
+		flashlines.set(flashline)
+		flashcnts = tk.StringVar()
+		flashcntent = tk.Entry(SetPath, textvariable=flashcnts, width=10)
+		flashcntent.grid(row=4, column=5, sticky='w')
+		flashcnts.set(flashcnt)
 
+		ramlinelab = tk.Label(SetPath, text="RAM指定参考内容和偏移")
+		ramlinelab.grid(row=5, column=0, padx=8, pady=4, sticky='ew')
+		ramlines = tk.StringVar()
+		ramlineent = tk.Entry(SetPath, textvariable=ramlines, width=40)
+		ramlineent.grid(row=5, column=1, sticky='w', columnspan=4)
+		ramlines.set(ramline)
+		ramcnts = tk.StringVar()
+		ramcntent = tk.Entry(SetPath, textvariable=ramcnts, width=10)
+		ramcntent.grid(row=5, column=5, sticky='w')
+		ramcnts.set(ramcnt)
+		savetext = tk.Button(SetPath, text="保存",
+							 command=lambda: self.savepath(flashlines, flashcnts, ramlines, ramcnts))
+		savetext.grid(row=6, column=0, padx= 8,pady= 4, sticky='ew')
 
 
 	def MemAnalysis(self):
@@ -734,28 +816,34 @@ class Application(tk.Frame):
 			# for s in datalist:
 			# 	print(hex(s))
 			self.Basic_infor(self.datalist,None)
-			self.create_Canvas(self.datalist)
-			self.flag = True
+			self.create_Canvas(self.datalist,None)
+			self.romstr.set(hex(self.datalist[4]))
+			self.nvmstr.set(hex(self.datalist[5]))
+			self.ramstr.set(hex(self.datalist[15]))
+			self.ramsizestr.set(hex(self.datalist[16]))
+			self.sizestr.set(hex(self.datalist[0]))
+			self.size1str.set(hex(self.datalist[17]))
+			global  mapflag
+			mapflag = True
 
 		except ValueError:
 			tk.messagebox.showinfo(title='错误', message="target.h中宏定义大小 XX_SIZE 为 0x200形式，不要写成0x100+0x100或0x200UL，"+
 													   "宏定义地址为 JC_RAM_BASE 	((memref)0x20000000UL)")
 
-	# for s in datalist:
-	# 	print(hex(s))
-	# getctarget(filetarget)
 
-	def MemModify(self):
-		pass
 
 
 	def CheckMap(self):
 		global filemap
 
-		if self.flag is  True:
-			getmap(filemap,self.datalist[1],self.datalist[2],self.datalist[5],self.datalist[13],self.datalist[14], self.datalist[15], self.datalist[16])
+		if mapflag is  True:
+			rlist = getmap(filemap)
+			self.datalist = self.datalist + rlist
+			self.Basic_infor(self.datalist,True)
+			self.create_Canvas(self.datalist,True)
 		else:
 			tk.messagebox.showinfo(title='错误', message="请先执行分析")
+
 
 
 
@@ -767,25 +855,49 @@ class Application(tk.Frame):
 			Basic_infor.insert(1.0, "NVM 页大小："+hex(data[3])+" （"+str(data[3])+"） " +"\n" )
 			Basic_infor.insert(2.0, "NVM 总空间：" + str(int((data[2] - data[1] +1)/1024)) +"K"+ "\n")
 			Basic_infor.insert(3.0, "RAM 总空间：" + str(int((data[14] - data[13] + 1) / 1024)) + "K" + "\n")
-			# Basic_infor.insert(4.0, "JAVA占用NVM空间：" + str(int((data[17] + data[18]) / 1024)) + "K" + "\n")
-			Basic_infor.insert(4.0, "\n")
-			Basic_infor.insert(5.0, "JAVA分配RAM空间：" + str(int((data[16]) / 1024)) + "K" + "\n")
-			Basic_infor.insert(6.0, "平台占用NVM空间：" + str(int((data[10] - data[5] + 1) / 1024)) + "K" + "\n")
+			Basic_infor.insert(4.0, "JAVA分配RAM空间：" + str(int((data[16]) / 1024)) + "K" + "\n")
+			Basic_infor.insert(5.0, "平台占用NVM空间：" + str(int((data[10] - data[5] + 1) / 1024)) + "K" + "\n")
 			if data[17] != data[0]:
-				Basic_infor.insert(7.0, "警告："+ "\n" )
-				Basic_infor.insert(8.0, "NvmDefaultData中的E2P_CONFIG_SIZE有误！"+"\n")
+				Basic_infor.insert(6.0, "警告："+ "\n" )
+				Basic_infor.insert(7.0, "NvmDefaultData中的E2P_CONFIG_SIZE有误！"+"\n")
 			else:
+				Basic_infor.insert(6.0, "\n")
 				Basic_infor.insert(7.0, "\n")
-				Basic_infor.insert(8.0, "\n")
-		if map is not None:
-			Basic_infor.insert(9.0, "\n")
-			Basic_infor.insert(10.0, "     编译结果信息"  + "\n")
-			Basic_infor.insert(11.0, "\n")
-			Basic_infor.insert(12.0, "ROMBase前可以利用空间：" + "\n")
-			Basic_infor.insert(13.0, "警告："+ "\n" )
-			Basic_infor.insert(14.0, "平台起始地址与mask.c重叠!" + "\n")
+		if map is True:
+			Basic_infor.insert(8.0, "\n")
+			Basic_infor.insert(9.0, "     编译结果信息"  + "\n")
+			if data[5] >= ( data[18] +data[19]):
+				Basic_infor.insert(10.0, "NVMBase前可以利用空间：" +  hex(data[5] - (data[18] +data[19])) + "\n")
+				if data[15] >= (data[20] + data[21]):
+					Basic_infor.insert(11.0, "RAMBase前可以利用空间：" + hex(data[15] - (data[20] + data[21])) + "\n")
+				else:
+					Basic_infor.insert(11.0, "警告：" + "\n")
+					Basic_infor.insert(12.0, "JAVA RAM空间分配重叠!" + "\n")
+					Basic_infor.insert(13.0, "RAMBase地址至少需要向后移动" + hex((data[20] + data[21]) - data[15]) + "\n")
+			else:
+				if data[15] >= (data[20] + data[21]):
+					Basic_infor.insert(10.0, "RAMBase前可以利用空间：" + hex(data[15] - (data[20] + data[21])) + "\n")
+				else:
+					Basic_infor.insert(10.0, "警告：" + "\n")
+					Basic_infor.insert(11.0, "JAVA RAM空间分配重叠! " + "\n")
+					Basic_infor.insert(12.0, "RAMBase地址至少需要向后移动" + hex((data[20] + data[21]) - data[15]) + "\n")
+					Basic_infor.insert(13.0, "平台起始地址与C层代码重叠!" + "\n")
+					Basic_infor.insert(14.0, "NVMBase地址至少需要向后移动"+hex((data[18] +data[19]) - data[5])+"\n")
+
 
 root = tk.Tk()
+root.title('Rongcard')
+global xx
+global yy
+xx = (root.winfo_screenwidth() - root.winfo_reqwidth()) / 2
+yy = (root.winfo_screenheight() - root.winfo_reqheight()) / 2
+root.geometry("+%d+%d" % (xx,yy))
+root.maxsize(500, 700)
+path = cur_file_dir()
+try:
+    root.iconbitmap(path + '\ico\card.ico')
+except:
+    pass
 app = Application(master=root)
 app.mainloop()
 
@@ -795,6 +907,7 @@ app.mainloop()
 # 5			  NVMBase, OS_PARA_DATA_FIELD_START, OS_PARA_DATA_FIELD_SIZE, OS_VARIABLE_FIELD_START,
 # 9			  OS_VARIABLE_FIELD_SIZE, E2P_IMAGE_START, EEP_BACKUP_AREA, EEP_BACKUP_AREA_SIZE,
 # 13		  JC_RAM_BASE, RAM_LIMIT, RAMBase, RAMSize
-# 17          g_ConfigSize
+# 17          g_ConfigSize ,flashlineaddr, flashlinesize,ramlineaddr,
+# 21          ramlinesize
 # 			  ]
 
